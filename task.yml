@@ -1,6 +1,6 @@
 jobs:
-  make-iso:
-    name: 制作镜像
+  build-iso:
+    name: 构建镜像
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -8,7 +8,7 @@ jobs:
         with:
           targets: x86_64-unknown-none
           components: rust-src
-      - name: 制作
+      - name: 构建
         run: |
           cargo build --release
           mv target/x86_64-unknown-none/release/kernel iso/boot/kernel
