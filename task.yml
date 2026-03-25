@@ -12,7 +12,7 @@ jobs:
         run: |
           cargo build --release
           mv target/x86_64-unknown-none/release/kernel iso/boot/kernel
-          apt update && apt install grub-common xorriso -y
+          apt-get update && apt-get install -y grub-common xorriso grub-pc-bin grub-efi-amd64-bin mtools
           grub-mkrescue -o kernel.iso iso
       - name: 上传产物
         uses: actions/upload-artifact@v4
