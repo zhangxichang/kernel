@@ -2,10 +2,10 @@ ENTRY(_start)
 
 SECTIONS {
     . = 0x100000;
+    .start : {
+        *(.start)
+    }
     .multiboot2 : {
         *(.multiboot2)
-    }
-    .core : {
-        *(.text .text.* .rodata .rodata.* .data .data.* .bss .bss.*)
     }
 }
