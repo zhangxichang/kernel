@@ -2,10 +2,16 @@
 #![no_main]
 
 mod kernel;
+mod types;
+mod vga;
 
 use core::panic::PanicInfo;
 
-use crate::kernel::Kernel;
+use crate::{
+    kernel::Kernel,
+    types::Vector2D,
+    vga::{Color, VGAScreen},
+};
 
 const MAGIC: u32 = 0xe85250d6;
 const ARCH: u32 = 0;
@@ -57,15 +63,22 @@ static PVH_NOTE: PVHNote = PVHNote {
 };
 
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    let mut vgascreen = VGAScreen::new();
+    vgascreen.reset();
+    vgascreen.write_string(
+        Vector2D::ZERO,
+        info.message().as_str().unwrap_or("Unknown error"),
+        Color::Red,
+    );
     loop {}
 }
 
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".start")]
 pub extern "C" fn _start() -> ! {
-    let mut kernel = Kernel::new();
+    let mut kernel = Kernel::new(VGAScreen::new()).expect("Kernel init error");
     loop {
-        kernel.tick();
+        kernel.tick().expect("Kernel tick error")
     }
 }
