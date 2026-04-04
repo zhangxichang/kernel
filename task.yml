@@ -11,7 +11,7 @@ jobs:
       - name: 构建
         run: |
           cargo build --release
-          mv target/x86_64-unknown-none/release/kernel iso/boot/kernel
+          mv target/x86_64-kernel/release/kernel iso/boot/kernel
           apt-get update && apt-get install -y grub-common xorriso grub-pc-bin grub-efi-amd64-bin mtools
           grub-mkrescue -o kernel.iso iso
       - name: 上传产物

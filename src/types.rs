@@ -1,3 +1,4 @@
+#[derive(Clone, Copy)]
 pub struct Vector2D {
     pub x: usize,
     pub y: usize,
