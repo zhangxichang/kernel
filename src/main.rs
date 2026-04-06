@@ -2,15 +2,15 @@
 #![no_main]
 
 mod kernel;
-mod types;
 mod vga;
 
-use core::{arch::global_asm, panic::PanicInfo};
+use core::{arch::global_asm, fmt::Write, panic::PanicInfo};
+
+use glam::UVec2;
 
 use crate::{
     kernel::Kernel,
-    types::Vector2D,
-    vga::{Color, VGAScreen},
+    vga::{VGA, VGAColor},
 };
 
 global_asm!(include_str!("asm/start.s"));
@@ -66,16 +66,16 @@ static PVH_NOTE: PVHNote = PVHNote {
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    let vgascreen = VGAScreen::new();
-    vgascreen.reset();
-    vgascreen.write_fmt(Vector2D::ZERO, Color::Red, format_args!("{info}"));
+    _ = VGA::new()
+        .writer(UVec2::ZERO, VGAColor::Red)
+        .write_fmt(format_args!("{}", info));
     loop {}
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn main() -> ! {
-    let mut kernel = Kernel::new(VGAScreen::new()).expect("Kernel init error");
+    let mut kernel = Kernel::new(VGA::new());
     loop {
-        kernel.tick().expect("Kernel tick error")
+        kernel.tick();
     }
 }

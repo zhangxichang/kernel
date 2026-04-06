@@ -1,15 +1,17 @@
-use crate::{
-    types::Vector2D,
-    vga::{Color, VGAScreen},
-};
+use core::fmt::Write;
+
+use glam::UVec2;
+
+use crate::vga::{VGA, VGAColor};
 
 pub struct Kernel {}
 impl Kernel {
-    pub fn new(vgascreen: VGAScreen) -> Result<Self, ()> {
-        vgascreen.write_string(Vector2D::ZERO, "Hello, world!", Color::White);
-        Ok(Self {})
+    pub fn new(vga: VGA) -> Self {
+        let mut writer = vga.writer(UVec2::ZERO, VGAColor::White);
+        writer
+            .write_str("Hello, world!")
+            .expect("failed to write text");
+        Self {}
     }
-    pub fn tick(&mut self) -> Result<(), ()> {
-        Ok(())
-    }
+    pub fn tick(&mut self) {}
 }

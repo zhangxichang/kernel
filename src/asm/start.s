@@ -3,25 +3,25 @@
 .global _start32
 _start32:
     cli // 屏蔽中断
-    lea esp, [stack_top] // 设置32位模式栈区
-    lgdt [gdt64_descriptor] // 设置GDT全局描述符表
     // 开启PAE物理地址扩展
     mov eax, cr4
     or eax, 1 << 5
     mov cr4, eax
-    // 设置分页地址转换表的顶层表
-    lea eax, [pml4]
-    mov cr3, eax
     // 设置允许进入长模式
     mov ecx, 0xC0000080
     rdmsr
     or eax, 1 << 8
     wrmsr
+    // 设置分页地址转换表的顶层表
+    lea eax, [pml4]
+    mov cr3, eax
     // 开启内存分页
     mov eax, cr0
     or eax, 1 << 31
     mov cr0, eax
-    // 切换进入64位模式
+    lgdt [gdt64_descriptor] // 设置GDT全局描述符表
+    lea esp, [stack_top] //设置32位模式栈区
+    // 推送执行64位代码段
     push 0x08
     lea eax, [_start64]
     push eax
@@ -57,6 +57,5 @@ pd:
 // 栈区
 .section .bss, "aw", @nobits
 .align 16
-stack:
     .skip 16384
 stack_top:

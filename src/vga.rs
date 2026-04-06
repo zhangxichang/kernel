@@ -1,86 +1,68 @@
 mod writer;
 
-use core::fmt::{Arguments, Write};
+use glam::UVec2;
 
-use x86_64::instructions::port::Port;
+use crate::vga::writer::VGAWriter;
 
-use crate::{types::Vector2D, vga::writer::VGAWriter};
-
+#[repr(u8)]
 #[derive(Clone, Copy)]
-pub enum Color {
+pub enum VGAColor {
     Black = 0x0,
     Red = 0x4,
     White = 0xf,
 }
 
-#[derive(Clone)]
-pub struct VGAScreen {
-    buffer_address: *mut u8,
-    width: usize,
-    height: usize,
-    cursor_index_port: Port<u8>,
-    cursor_data_port: Port<u8>,
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct VGAChar {
+    ascii: u8,
+    color: u8,
 }
-impl VGAScreen {
-    const CELL_SIZE: usize = 2;
+impl VGAChar {
+    pub fn new(ascii: u8, color: VGAColor) -> Self {
+        Self {
+            ascii,
+            color: color as u8,
+        }
+    }
+}
 
+pub struct VGA {
+    buffer_address: *mut VGAChar,
+    size: UVec2,
+}
+impl VGA {
     pub fn new() -> Self {
-        let vgascreen = Self {
-            buffer_address: 0xb8000 as _,
-            width: 80,
-            height: 25,
-            cursor_index_port: Port::new(0x3d4),
-            cursor_data_port: Port::new(0x3d5),
+        let vga = Self {
+            buffer_address: 0xb8000 as *mut VGAChar,
+            size: UVec2::new(80, 25),
         };
-        vgascreen.reset();
-        vgascreen
+        vga.clear();
+        vga
     }
-    pub fn reset(&self) {
-        self.move_cursor(Vector2D::ZERO);
-        self.clear();
+    fn cell_offset(&self, position: UVec2) -> Option<usize> {
+        (position.x < self.size.x && position.y < self.size.y)
+            .then(|| (position.y * self.size.x + position.x) as usize)
     }
-    pub fn move_cursor(&self, position: Vector2D) {
-        let position = self.clamp_position(position);
-        let offset = position.y * self.width + position.x;
-        let mut cursor_index_port = self.cursor_index_port.clone();
-        let mut cursor_data_port = self.cursor_data_port.clone();
+    pub fn write_char(&self, position: UVec2, char: VGAChar) {
         unsafe {
-            cursor_index_port.write(0x0f);
-            cursor_data_port.write((offset & 0xff) as u8);
-            cursor_index_port.write(0x0e);
-            cursor_data_port.write(((offset >> 8) & 0xff) as u8);
+            self.buffer_address
+                .add(
+                    self.cell_offset(position)
+                        .expect("write position is out of bounds"),
+                )
+                .write_volatile(char);
         }
     }
     pub fn clear(&self) {
-        for y in 0..self.height {
-            for x in 0..self.width {
-                self.write_byte(Vector2D { x, y }, b' ', Color::Black);
+        let char = VGAChar::new(b' ', VGAColor::Black);
+        for offset in 0..(self.size.x * self.size.y) as usize {
+            unsafe {
+                self.buffer_address.add(offset).write_volatile(char);
             }
         }
     }
-    pub fn write_string(&self, position: Vector2D, string: &str, color: Color) {
-        let mut writer = VGAWriter::new(self, position, color);
-        let _ = writer.write_str(string);
-        writer.flush_cursor();
-    }
-    pub fn write_fmt(&self, position: Vector2D, color: Color, args: Arguments<'_>) {
-        let mut writer = VGAWriter::new(self, position, color);
-        let _ = writer.write_fmt(args);
-        writer.flush_cursor();
-    }
-    fn clamp_position(&self, position: Vector2D) -> Vector2D {
-        Vector2D {
-            x: position.x.min(self.width.saturating_sub(1)),
-            y: position.y.min(self.height.saturating_sub(1)),
-        }
-    }
-    fn write_byte(&self, position: Vector2D, byte: u8, color: Color) {
-        let offset = (position.y * self.width + position.x) * Self::CELL_SIZE;
-        unsafe {
-            self.buffer_address.add(offset).write_volatile(byte);
-            self.buffer_address
-                .add(offset + 1)
-                .write_volatile(color as u8);
-        }
+    pub fn writer(&self, position: UVec2, color: VGAColor) -> VGAWriter<'_> {
+        VGAWriter::new(self, position, color)
     }
 }
