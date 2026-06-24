@@ -1,81 +1,28 @@
 #![no_std]
 #![no_main]
+mod framebuffer;
+mod limine_requests;
 
-mod kernel;
-mod vga;
-
-use core::{arch::global_asm, fmt::Write, panic::PanicInfo};
-
-use glam::UVec2;
+use core::panic::PanicInfo;
 
 use crate::{
-    kernel::Kernel,
-    vga::{VGA, VGAColor},
-};
-
-global_asm!(include_str!("asm/start.s"));
-
-const MAGIC: u32 = 0xe85250d6;
-const ARCH: u32 = 0;
-const HEADER_LEN: u32 = 24;
-
-#[repr(C, align(8))]
-struct Multiboot2Header {
-    magic: u32,
-    arch: u32,
-    length: u32,
-    checksum: u32,
-    t_type: u16,
-    t_flags: u16,
-    t_size: u32,
-}
-
-#[repr(C)]
-struct PVHNote {
-    n_name_len: u32,
-    n_desc_len: u32,
-    n_type: u32,
-    name: [u8; 4],
-    entry: u32,
-}
-
-#[used]
-#[unsafe(link_section = ".multiboot2")]
-static MULTIBOOT2: Multiboot2Header = Multiboot2Header {
-    magic: MAGIC,
-    arch: ARCH,
-    length: HEADER_LEN,
-    checksum: MAGIC
-        .wrapping_add(ARCH)
-        .wrapping_add(HEADER_LEN)
-        .wrapping_neg(),
-    t_type: 0,
-    t_flags: 0,
-    t_size: 8,
-};
-
-#[used]
-#[unsafe(link_section = ".note.Xen")]
-static PVH_NOTE: PVHNote = PVHNote {
-    n_name_len: 4,
-    n_desc_len: 4,
-    n_type: 0x12,
-    name: *b"Xen\0",
-    entry: 0x100000,
+    framebuffer::draw_hello_world_to_framebuffer,
+    limine_requests::{BASE_REVISION, FRAMEBUFFER_REQUEST},
 };
 
 #[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    _ = VGA::new()
-        .writer(UVec2::ZERO, VGAColor::Red)
-        .write_fmt(format_args!("{}", info));
+fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn main() -> ! {
-    let mut kernel = Kernel::new(VGA::new());
-    loop {
-        kernel.tick();
+pub extern "C" fn _start() -> ! {
+    if BASE_REVISION.is_supported() {
+        if let Some(response) = FRAMEBUFFER_REQUEST.response() {
+            if let Some(framebuffer) = response.framebuffers().first() {
+                draw_hello_world_to_framebuffer(framebuffer);
+            }
+        }
     }
+    loop {}
 }

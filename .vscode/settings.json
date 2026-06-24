@@ -1,0 +1,5 @@
+{
+  "rust-analyzer.cargo.metadataExtraArgs": [
+    "-Zjson-target-spec"
+  ],
+}
